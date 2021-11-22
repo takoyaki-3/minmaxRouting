@@ -10,11 +10,19 @@ import (
 func main(){
 	g := makeTestGraph()
 
-	routing.MinMaxRouting(g,routing.Query{
+	routes := routing.MinMaxRouting(g,routing.Query{
 		FromNode: 0,
 		ToNode: 6,
 		NWeight: 2,
 	})
+
+	fmt.Println("---routes---")
+	for _,route := range routes{
+		for _,n:=range route.Nodes{
+			fmt.Print(n," ")
+		}
+		fmt.Println("")
+	}
 }
 
 func makeTestGraph()*minmaxrouting.Graph{

@@ -1,7 +1,6 @@
 package routing
 
 import (
-	"fmt"
 	"math"
 	"github.com/takoyaki-3/minmaxRouting"
 )
@@ -13,7 +12,12 @@ type Query struct {
 
 }
 
-func MinMaxRouting(g *minmaxrouting.Graph,query Query){
+type Route struct {
+	Nodes []minmaxrouting.NodeIdType
+	Weight minmaxrouting.Weight
+}
+
+func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 
 	pos := minmaxrouting.NodeIdType(query.FromNode)
 	toNode := minmaxrouting.NodeIdType(query.ToNode)
@@ -69,20 +73,21 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query){
 		}
 	}
 
-	for k,v:=range memo{
-		fmt.Println(k,len(v))
-	}
-	fmt.Println("---route---")
-	for i,_:=range memo[toNode] {
+	for i,v:=range memo[toNode] {
+		route := Route{
+			Weight: v.Weight,
+		}
 		pos = toNode
 		for pos != -1{
-			fmt.Print(pos,"-")
+			route.Nodes = append([]minmaxrouting.NodeIdType{pos},route.Nodes...)
 			bc := memo[pos][i]
 			pos = bc.BeforeNode
 			i = bc.BeforeIndex
 		}
-		fmt.Println("")
+		routes = append(routes, route)
 	}
+
+	return routes
 }
 
 func WeightAdder(w1 minmaxrouting.Weight,w2 minmaxrouting.Weight)(w minmaxrouting.Weight){
