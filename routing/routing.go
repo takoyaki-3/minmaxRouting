@@ -1,7 +1,9 @@
 package routing
 
 import (
+	"fmt"
 	"math"
+
 	"github.com/takoyaki-3/minmaxRouting"
 )
 
@@ -29,65 +31,175 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 	memo[pos] = append(memo[pos], CB{
 		BeforeNode: -1,
 		BeforeIndex: -1,
+		BeforeEdgeId: -1,
 		Weight: *minmaxrouting.NewWeight(query.NWeight),
 	})
+
+	// minOfMin := []minmaxrouting.SingleCostType{}
+	// maxOfMax := []minmaxrouting.SingleCostType{}
+	// for i:=0;i<query.NWeight;i++{
+	// 	maxOfMax = append(minOfMin, math.MaxInt32/2)
+	// 	// minOfMin = append(minOfMin, math.MaxInt32/2)
+	// 	// maxOfMax = append(maxOfMax, -1)
+	// }
 
 	que := Que{}
 	que.Add(query.FromNode,*minmaxrouting.NewWeight(query.NWeight),0)
 	for que.Len() > 0 {
 		pos,i := que.Get()
+		if memo[pos][i].Weight.Weights[0].Min > math.MaxInt32/4{
+			fmt.Println("del")
+			continue
+		}
 		if pos == toNode {
+			// for j:=0;j<len(memo[pos]);j++{
+			// 	bef := memo[pos][:j]
+			// 	aft := memo[pos][j+1:]
+				
+			// 	if !Better(memo[pos][j].Weight,&bef) && !Better(memo[pos][j].Weight,&aft){
+			// 		fmt.Println("not good")
+			// 		memo[pos][j] = memo[pos][len(memo[pos])-1]
+			// 		memo[pos] = memo[pos][1:]
+			// 		j--
+			// 	}
+			// }
+			// if len(maxOfMax) == 0{
+			// 	for j:=0;j<query.NWeight;j++{
+			// 		maxOfMax = append(maxOfMax,memo[pos][i].Weight.Weights[j].Max)
+			// 	}	
+			// }
+			// for j:=0;j<query.NWeight;j++{
+			// 	// if memo[pos][i].Weight.Weights[j].Min < minOfMin[j] && {
+			// 	// 	minOfMin[j] = memo[pos][i].Weight.Weights[j].Min
+			// 	// }
+			// 	if memo[pos][i].Weight.Weights[j].Max > maxOfMax[j]{
+			// 		maxOfMax[j] = memo[pos][i].Weight.Weights[j].Max
+			// 	}
+			// }
+			fmt.Println(GetRoute(memo,pos,i),len(memo[pos]),que.Len())
+			continue
+		}
+		// 既知のゴールへの重みより大きいか検証
+		if !Better(memo[pos][i].Weight,&memo[toNode]) {
 			continue
 		}
 
 		for _,edgeId := range g.Nodes[pos].FromEdgeIds{
 			edge := g.Edges[edgeId]
+			if edge.ToId == pos{
+				continue
+			}
 
 			newW := WeightAdder(memo[pos][i].Weight,edge.Weight)
+			// 既知のゴールへの重みより大きいか検証
+			if !Better(newW,&memo[toNode]) {
+				continue
+			}
+			// if len(maxOfMax) > 0{
+			// 	flag := false
+			// 	for j:=0;j<query.NWeight;j++{
+			// 		if newW.Weights[j].Min < maxOfMax[j]{
+			// 			flag = true
+			// 			break
+			// 		}
+			// 	}
+			// 	if !flag {
+			// 		continue
+			// 	}
+			// }
+			if !Better(newW,&memo[edge.ToId]) {
+				continue
+			}
+			// 既に訪問済みか検証
 			flag := true
-			for index,m := range memo[edge.ToId]{
-				cmp := CompWeight(m.Weight,newW)
-				if cmp < 0{
+			p := pos
+			ind := i
+			eid := edgeId
+			transfer := 0
+			for p != -1{
+				transfer++
+				if transfer > 4 {
 					flag = false
 					break
-				} else if cmp > 0 {
-					// 悪いので排除
-					memo[edge.ToId][index].Weight = minmaxrouting.Weight{}
-					for i:=0;i<query.NWeight;i++{
-						memo[edge.ToId][index].Weight.Weights = append(memo[edge.ToId][index].Weight.Weights, minmaxrouting.MinMax{
-							Min: math.MaxInt32/2,
-							Max: math.MaxInt32/2,
-						})
+				}
+				if p == edge.ToId{
+					flag = false
+					break
+				}
+				for _,n := range edge.ViaNodes{
+					if p == n{
+						flag = false
+						break
 					}
 				}
+				for _,vnode := range g.Edges[eid].ViaNodes{
+					if vnode == edge.ToId{
+						flag = false
+						break
+					}
+					if edgeId != eid{
+						for _,n := range edge.ViaNodes{
+							if vnode == n{
+								flag = false
+								break
+							}
+						}
+						if !flag {
+							break
+						}	
+					}
+				}
+				if !flag {
+					break
+				}
+				m := memo[p][ind]
+				p = m.BeforeNode
+				ind = m.BeforeIndex
+				eid = m.BeforeEdgeId
 			}
-		
-			if flag{
-				que.Add(edge.ToId,newW,len(memo[edge.ToId]))
-				memo[edge.ToId] = append(memo[edge.ToId], CB{
-					BeforeNode: pos,
-					BeforeIndex: i,
-					Weight: newW,
-				})
+			if !flag {
+				continue
 			}
+			que.Add(edge.ToId,newW,len(memo[edge.ToId]))
+			memo[edge.ToId] = append(memo[edge.ToId], CB{
+				BeforeNode: pos,
+				BeforeIndex: i,
+				BeforeEdgeId: edgeId,
+				Weight: newW,
+			})
 		}
 	}
 
-	for i,v:=range memo[toNode] {
-		route := Route{
-			Weight: v.Weight,
+	for i,_:=range memo[toNode] {
+		if Better(memo[toNode][i].Weight,&memo[toNode]) {
+			routes = append(routes, *GetRoute(memo,toNode,i))
 		}
-		pos = toNode
-		for pos != -1{
-			route.Nodes = append([]minmaxrouting.NodeIdType{pos},route.Nodes...)
-			bc := memo[pos][i]
-			pos = bc.BeforeNode
-			i = bc.BeforeIndex
-		}
-		routes = append(routes, route)
 	}
 
 	return routes
+}
+
+func GetRoute(memo [][]CB,pos minmaxrouting.NodeIdType,i int)*Route{
+	route := Route{
+		Weight: memo[pos][i].Weight,
+	}
+	pos = pos
+	for pos != -1{
+		route.Nodes = append([]minmaxrouting.NodeIdType{pos},route.Nodes...)
+		bc := memo[pos][i]
+		pos = bc.BeforeNode
+		i = bc.BeforeIndex
+	}
+	return &route
+}
+
+func Better(weight minmaxrouting.Weight,ws *[]CB)bool{
+	for _,w := range *ws{
+		if CompWeight(weight,w.Weight) == 1 {
+			return false
+		}
+	}
+	return true
 }
 
 func WeightAdder(w1 minmaxrouting.Weight,w2 minmaxrouting.Weight)(w minmaxrouting.Weight){
@@ -121,16 +233,21 @@ func (q *Que)Len()int{
 func (q *Que)Get()(minmaxrouting.NodeIdType,int){
 	q.n--
 	minI := 0
-	for i:=1;i<len(q.weights);i++{
-		if CompWeight(q.weights[minI],q.weights[i]) > 0{
-			minI = i
-		}
-	}
+	// for i:=1;i<len(q.weights);i++{
+	// 	cmp := CompWeight(q.weights[minI],q.weights[i])
+	// 	if cmp > 0{
+	// 		minI = i
+	// 	} else if cmp == 0{
+	// 		if q.weights[minI].Weights[0].Max > q.weights[i].Weights[0].Max {
+	// 			minI = i
+	// 		}
+	// 	}
+	// }
 	rnode := q.keys[minI]
 	rindex := q.indexes[minI]
-	q.weights[minI] = q.weights[0]
-	q.keys[minI] = q.keys[0]
-	q.indexes[minI] = q.indexes[0]
+	// q.weights[minI] = q.weights[0]
+	// q.keys[minI] = q.keys[0]
+	// q.indexes[minI] = q.indexes[0]
 	q.weights = q.weights[1:]
 	q.keys = q.keys[1:]
 	q.indexes = q.indexes[1:]
@@ -141,7 +258,7 @@ func (q *Que)Get()(minmaxrouting.NodeIdType,int){
 func CompWeight(w1 minmaxrouting.Weight,w2 minmaxrouting.Weight)int{
 	is1Better := true
 	is2Better := true
-	
+
 	for i,_:=range w1.Weights{
 		if !(w1.Weights[i].Max <= w2.Weights[i].Min) {
 			// w1が一概に優っているとは言えない
@@ -164,6 +281,7 @@ func CompWeight(w1 minmaxrouting.Weight,w2 minmaxrouting.Weight)int{
 type CB struct {
 	BeforeNode minmaxrouting.NodeIdType
 	BeforeIndex int
+	BeforeEdgeId minmaxrouting.EdgeIdType
 	Weight minmaxrouting.Weight
 }
 

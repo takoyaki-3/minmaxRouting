@@ -24,6 +24,8 @@ type Edge struct {
 	FromId NodeIdType
 	ToId NodeIdType
 	Weight Weight
+
+	ViaNodes []NodeIdType
 }
 
 type Node struct {
