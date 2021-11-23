@@ -9,7 +9,7 @@ type Query struct {
 	NWeight int
 	FromNode minmaxrouting.NodeIdType
 	ToNode minmaxrouting.NodeIdType
-
+	MaxTransfer int
 }
 
 type Route struct {
@@ -40,12 +40,14 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 		if memo[pos][i].Weight.Weights[0].Min > math.MaxInt32/4{
 			continue
 		}
-		if pos == toNode {
-			continue
-		}
-		// 既知のゴールへの重みより大きいか検証
-		if !Better(memo[pos][i].Weight,&memo[toNode]) {
-			continue
+		if toNode != -1 {
+			if pos == toNode {
+				continue
+			}
+			// 既知のゴールへの重みより大きいか検証
+			if !Better(memo[pos][i].Weight,&memo[toNode]) {
+				continue
+			}	
 		}
 
 		for _,edgeId := range g.Nodes[pos].FromEdgeIds{
@@ -56,7 +58,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 
 			newW := WeightAdder(memo[pos][i].Weight,edge.Weight)
 			// 既知のゴールへの重みより大きいか検証
-			if !Better(newW,&memo[toNode]) {
+			if toNode != -1 && !Better(newW,&memo[toNode]) {
 				continue
 			}
 			if !Better(newW,&memo[edge.ToId]) {
@@ -70,7 +72,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 			transfer := 0
 			for p != -1{
 				transfer++
-				if transfer > 4 {
+				if transfer > query.MaxTransfer {
 					flag = false
 					break
 				}
@@ -122,9 +124,19 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 		}
 	}
 
-	for i,_:=range memo[toNode] {
-		if Better(memo[toNode][i].Weight,&memo[toNode]) {
-			routes = append(routes, *GetRoute(memo,toNode,i))
+	if toNode != -1 {
+		for i,_:=range memo[toNode] {
+			if Better(memo[toNode][i].Weight,&memo[toNode]) {
+				routes = append(routes, *GetRoute(memo,toNode,i))
+			}
+		}
+	} else {
+		for toNode,_ := range g.Nodes{
+			for i,_:=range memo[toNode] {
+				if Better(memo[toNode][i].Weight,&memo[toNode]) {
+					routes = append(routes, *GetRoute(memo,minmaxrouting.NodeIdType(toNode),i))
+				}
+			}	
 		}
 	}
 
