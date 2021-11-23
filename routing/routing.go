@@ -1,8 +1,11 @@
 package routing
 
 import (
+	"fmt"
 	"math"
+
 	"github.com/takoyaki-3/minmaxRouting"
+	pb "github.com/takoyaki-3/minmaxRouting/pb"
 )
 
 type Query struct {
@@ -15,15 +18,16 @@ type Query struct {
 type Route struct {
 	Nodes []minmaxrouting.NodeIdType
 	Weight minmaxrouting.Weight
+	SubNodes [][]minmaxrouting.NodeIdType
 }
 
-func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
+func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]CB){
 
 	pos := minmaxrouting.NodeIdType(query.FromNode)
 	toNode := minmaxrouting.NodeIdType(query.ToNode)
 
 	// マーティン拡張による最大・最小の
-	memo := make([][]CB,len(g.Nodes))
+	memo = make([][]CB,len(g.Nodes))
 
 	// 初期化
 	memo[pos] = append(memo[pos], CB{
@@ -42,6 +46,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 		}
 		if toNode != -1 {
 			if pos == toNode {
+				fmt.Println(pos,i,memo[pos][i].Weight.Weights,que.Len())
 				continue
 			}
 			// 既知のゴールへの重みより大きいか検証
@@ -72,9 +77,16 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 			transfer := 0
 			for p != -1{
 				transfer++
-				if transfer > query.MaxTransfer {
-					flag = false
-					break
+				if toNode != -1{
+					if edge.ToId != toNode && transfer > query.MaxTransfer - 1 {
+						flag = false
+						break
+					}	
+				} else {
+					if transfer > query.MaxTransfer {
+						flag = false
+						break
+					}	
 				}
 				if p == edge.ToId{
 					flag = false
@@ -130,17 +142,51 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route){
 				routes = append(routes, *GetRoute(memo,toNode,i))
 			}
 		}
-	} else {
-		for toNode,_ := range g.Nodes{
-			for i,_:=range memo[toNode] {
-				if Better(memo[toNode][i].Weight,&memo[toNode]) {
-					routes = append(routes, *GetRoute(memo,minmaxrouting.NodeIdType(toNode),i))
-				}
-			}	
-		}
+	// } else {
+	// 	for toNode,_ := range g.Nodes{
+	// 		for i,_:=range memo[toNode] {
+	// 			if Better(memo[toNode][i].Weight,&memo[toNode]) {
+	// 				routes = append(routes, *GetRoute(memo,minmaxrouting.NodeIdType(toNode),i))
+	// 			}
+	// 		}	
+	// 	}
 	}
 
+	return routes,memo
+}
+
+func GetRoutes(memo [][]CB)[]Route{
+	routes := []Route{}
+	for toNode,v := range memo{
+		for i,_:=range v {
+			if Better(v[i].Weight,&v) {
+				routes = append(routes, *GetRoute(memo,minmaxrouting.NodeIdType(toNode),i))
+			}
+		}	
+	}
 	return routes
+}
+
+func GetRouteTree(memo [][]CB)(*pb.RouteTree){
+	tree := &pb.RouteTree{}
+	for nid,v:=range memo{
+		for index,v:=range v{
+			wight := &pb.Weight{}
+			for _,w := range v.Weight.Weights{
+				wight.Max = append(wight.Max, int32(w.Max))
+				wight.Min = append(wight.Min, int32(w.Min))
+			}
+			tree.Leaves = append(tree.Leaves, &pb.Leaf{
+				NodeId: int32(nid),
+				Index: int32(index),
+				BeforeNodeId: int32(v.BeforeNode),
+				BeforeIndex: int32(v.BeforeIndex),
+				BeforeEdgeId: int32(v.BeforeEdgeId),
+				Weight: wight,
+			})
+		}
+	}
+	return tree
 }
 
 func GetRoute(memo [][]CB,pos minmaxrouting.NodeIdType,i int)*Route{

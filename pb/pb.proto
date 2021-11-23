@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package minmaxroutingpbf;
+
+message Weight {
+  repeated int32 Max = 1;
+  repeated int32 Min = 2;
+}
+
+message Leaf {
+  int32 NodeId = 1;
+  int32 Index = 2;
+  int32 BeforeNodeId = 3;
+  int32 BeforeIndex = 4;
+  int32 BeforeEdgeId = 5;
+  Weight Weight = 6;
+}
+
+message RouteTree {
+  repeated Leaf Leaves = 1;
+}
+
