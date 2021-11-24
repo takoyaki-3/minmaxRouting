@@ -61,6 +61,29 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				continue
 			}
 
+			// 同一路線を排除
+			if memo[pos][i].BeforeEdgeId != -1{
+				beforeUseTrips := g.Edges[memo[pos][i].BeforeEdgeId].UseTrips
+				befS := -1
+				for tripIndex,trip := range edge.UseTrips{
+					if trip == beforeUseTrips[0]{
+						befS = tripIndex
+					}
+				}
+				if befS != -1{
+					flag := false
+					for index,_ := range edge.UseTrips[befS:]{
+						if edge.UseTrips[befS:][index] != beforeUseTrips[index]{
+							flag = true
+							break
+						}
+					}
+					if !flag {
+						continue
+					}
+				}
+			}
+
 			newW := WeightAdder(memo[pos][i].Weight,edge.Weight)
 			// 既知のゴールへの重みより大きいか検証
 			if toNode != -1 && !Better(newW,&memo[toNode]) {

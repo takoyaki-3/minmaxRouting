@@ -26,6 +26,7 @@ type Edge struct {
 	Weight Weight
 
 	ViaNodes []NodeIdType
+	UseTrips []int
 }
 
 type Node struct {
