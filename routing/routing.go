@@ -3,6 +3,8 @@ package routing
 import (
 	// "fmt"
 
+	"fmt"
+
 	"github.com/takoyaki-3/minmaxRouting"
 	pb "github.com/takoyaki-3/minmaxRouting/pb"
 )
@@ -131,7 +133,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				// 乗換回数の上限検査
 				transfer++
 				if toNode != -1{
-					if edge.ToId != toNode && transfer > query.MaxTransfer - 1 {
+					if transfer > query.MaxTransfer - 1 {
 						flag = false
 						break
 					}
@@ -165,6 +167,10 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				// if !flag {
 				// 	break
 				// }
+				// if len(memo[p]) == 0{
+				// 	fmt.Println("err",p,memo[p],ind)
+				// 	break
+				// }
 				m := memo[p][ind]
 				p = m.BeforeNode
 				ind = m.BeforeIndex
@@ -173,9 +179,9 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 			if !flag {
 				continue
 			}
-			// if cou % 1000 == 0{
-			// 	fmt.Println("add",cou,newW)
-			// }
+			if false && cou % 1000 == 0{
+				fmt.Println("add",cou,newW)
+			}
 			cou++
 			que.Add(edge.ToId,newW,len(memo[edge.ToId]))
 			memo[edge.ToId] = append(memo[edge.ToId], CB{
