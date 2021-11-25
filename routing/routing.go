@@ -1,7 +1,7 @@
 package routing
 
 import (
-	"fmt"
+	// "fmt"
 
 	"github.com/takoyaki-3/minmaxRouting"
 	pb "github.com/takoyaki-3/minmaxRouting/pb"
@@ -47,7 +47,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 		}
 		if toNode != -1 {
 			if pos == toNode {
-				fmt.Println(pos,i,memo[pos][i].Weight.Weights,que.Len())
+				// fmt.Println(pos,i,memo[pos][i].Weight.Weights,que.Len())
 				continue
 			}
 			// 既知のゴールへの重みより大きいか検証
@@ -112,20 +112,20 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 			}
 
 			flag := true
-			// 辺の経由駅が訪問済みの場合
-			for _,n := range edge.ViaNodes{
-				if edge.ToId == n{
-					flag = false
-					break
-				}
-			}
-			if !flag{
-				continue
-			}
+			// // 辺の経由駅が訪問済みの場合
+			// for _,n := range edge.ViaNodes{
+			// 	if edge.ToId == n{
+			// 		flag = false
+			// 		break
+			// 	}
+			// }
+			// if !flag{
+			// 	continue
+			// }
 			// 既に訪問済みか検証
 			p := pos
 			ind := i
-			eid := edgeId
+			// eid := edgeId
 			transfer := 0
 			for p != -1{
 				// 乗換回数の上限検査
@@ -147,35 +147,35 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 					break
 				}
 
-				for _,vnode := range g.Edges[eid].ViaNodes{
-					if vnode == edge.ToId{
-						flag = false
-						break
-					}
-					for _,n := range edge.ViaNodes{
-						if vnode == n{
-							flag = false
-							break
-						}
-					}
-					if !flag {
-						break
-					}	
-				}
-				if !flag {
-					break
-				}
+				// for _,vnode := range g.Edges[eid].ViaNodes{
+				// 	if vnode == edge.ToId{
+				// 		flag = false
+				// 		break
+				// 	}
+				// 	for _,n := range edge.ViaNodes{
+				// 		if vnode == n{
+				// 			flag = false
+				// 			break
+				// 		}
+				// 	}
+				// 	if !flag {
+				// 		break
+				// 	}	
+				// }
+				// if !flag {
+				// 	break
+				// }
 				m := memo[p][ind]
 				p = m.BeforeNode
 				ind = m.BeforeIndex
-				eid = m.BeforeEdgeId
+				// eid = m.BeforeEdgeId
 			}
 			if !flag {
 				continue
 			}
-			if cou % 1000 == 0{
-				fmt.Println("add",cou,newW)
-			}
+			// if cou % 1000 == 0{
+			// 	fmt.Println("add",cou,newW)
+			// }
 			cou++
 			que.Add(edge.ToId,newW,len(memo[edge.ToId]))
 			memo[edge.ToId] = append(memo[edge.ToId], CB{
