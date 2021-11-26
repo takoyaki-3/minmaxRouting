@@ -77,6 +77,10 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 					if befS != -1{
 						flag := false
 						for index:=0;index<len(edge.UseTrips)-befS;index++{
+							if len(beforeUseTrips) == index{
+								flag = true
+								break
+							}
 							if edge.UseTrips[befS+index] != beforeUseTrips[index]{
 								flag = true
 								break
