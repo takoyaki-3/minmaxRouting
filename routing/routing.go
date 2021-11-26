@@ -2,6 +2,8 @@ package routing
 
 import (
 	"fmt"
+
+	"github.com/groove-x/cloudfunctions/log"
 	"github.com/takoyaki-3/minmaxRouting"
 	pb "github.com/takoyaki-3/minmaxRouting/pb"
 )
@@ -40,8 +42,9 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 	que := Que{}
 	que.Add(query.FromNode,*minmaxrouting.NewWeight(query.NWeight),0)
 	for que.Len() > 0 {
-		pos,i := que.Get()
-		if !memo[pos][i].IsUse{
+		pos,memoPosIndex := que.Get()
+		memoPos := &memo[pos][memoPosIndex]
+		if !memoPos.IsUse{
 			continue
 		}
 		if toNode != -1 {
@@ -50,8 +53,8 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				continue
 			}
 			// 既知のゴールへの重みより大きいか検証
-			if !Better(memo[pos][i].Weight,&memo[toNode]) {
-				memo[pos][i] = CB{
+			if !Better(memoPos.Weight,&memo[toNode]) {
+				*memoPos = CB{
 					IsUse: false,
 				}
 				continue
@@ -65,8 +68,8 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 			}
 
 			// 同一路線を排除
-			if memo[pos][i].BeforeEdgeId != -1{
-				beforeUseTrips := g.Edges[memo[pos][i].BeforeEdgeId].UseTrips
+			if memoPos.BeforeEdgeId != -1{
+				beforeUseTrips := g.Edges[memoPos.BeforeEdgeId].UseTrips
 				if len(beforeUseTrips) > 0{
 					befS := -1
 					for tripIndex,trip := range edge.UseTrips{
@@ -93,7 +96,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				}
 			}
 
-			newW := WeightAdder(memo[pos][i].Weight,edge.Weight)
+			newW := WeightAdder(memoPos.Weight,edge.Weight)
 			// 既知のゴールへの重みより大きいか検証
 			if toNode != -1 && !Better(newW,&memo[toNode]) {
 				continue
@@ -129,10 +132,14 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 			// }
 			// 既に訪問済みか検証
 			p := pos
-			ind := i
+			ind := memoPosIndex
 			eid := edgeId
 			transfer := 0
 			for p != -1{
+				if !memo[p][ind].IsUse{
+					flag = false
+					break
+				}
 				// 乗換回数の上限検査
 				transfer++
 				if toNode != -1{
@@ -172,7 +179,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 						break
 					}
 				}
-				m := memo[p][ind]
+				m := &memo[p][ind]
 				p = m.BeforeNode
 				ind = m.BeforeIndex
 				eid = m.BeforeEdgeId
@@ -187,7 +194,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 			que.Add(edge.ToId,newW,len(memo[edge.ToId]))
 			memo[edge.ToId] = append(memo[edge.ToId], CB{
 				BeforeNode: pos,
-				BeforeIndex: i,
+				BeforeIndex: memoPosIndex,
 				BeforeEdgeId: edgeId,
 				Weight: newW,
 				IsUse: true,
