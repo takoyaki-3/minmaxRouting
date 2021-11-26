@@ -48,7 +48,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 		}
 		if toNode != -1 {
 			if pos == toNode {
-				// fmt.Println(pos,i,memo[pos][i].Weight.Weights,que.Len())
+				fmt.Println(pos,memoPosIndex,memoPos.Weight.Weights,que.Len())
 				continue
 			}
 			// 既知のゴールへの重みより大きいか検証
@@ -142,7 +142,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				// 乗換回数の上限検査
 				transfer++
 				if toNode != -1{
-					if transfer > query.MaxTransfer - 1 {
+					if edge.ToId != toNode && transfer > query.MaxTransfer - 1 {
 						flag = false
 						break
 					}
@@ -250,6 +250,7 @@ func GetRouteTree(memo [][]CB)(*pb.RouteTree){
 				BeforeIndex: int32(v.BeforeIndex),
 				BeforeEdgeId: int32(v.BeforeEdgeId),
 				Weight: wight,
+				IsUse: v.IsUse,
 			})
 		}
 	}
@@ -326,6 +327,7 @@ func CompWeight(w1 minmaxrouting.Weight,w2 minmaxrouting.Weight)int{
 	is2Better := true
 
 	for i,_:=range w1.Weights{
+		// fmt.Println(i)
 		if !(w1.Weights[i].Max <= w2.Weights[i].Min) {
 			// w1が一概に優っているとは言えない
 			is1Better = false
