@@ -49,7 +49,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 		}
 		if toNode != -1 {
 			if pos == toNode {
-				fmt.Println(pos,memoPosIndex,memoPos.Weight.Weights,que.Len())
+				// fmt.Println(pos,memoPosIndex,memoPos.Weight.Weights,que.Len())
 				continue
 			}
 			// 既知のゴールへの重みより大きいか検証
@@ -269,6 +269,9 @@ func GetRoute(memo [][]CB,pos minmaxrouting.NodeIdType,i int)*Route{
 	for pos != -1{
 		route.Nodes = append([]minmaxrouting.NodeIdType{pos},route.Nodes...)
 		bc := memo[pos][i]
+		if !bc.IsUse{
+			return &Route{}
+		}
 		pos = bc.BeforeNode
 		i = bc.BeforeIndex
 	}
