@@ -12,6 +12,7 @@ type Query struct {
 	FromNode minmaxrouting.NodeIdType
 	ToNode minmaxrouting.NodeIdType
 	MaxTransfer int
+	IsSerialNG bool
 }
 
 type Route struct {
@@ -63,6 +64,9 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 		for _,edgeId := range g.Nodes[pos].FromEdgeIds{
 			edge := g.Edges[edgeId]
 			if edge.ToId == pos{
+				continue
+			}
+			if query.IsSerialNG && memoPos.BeforeEdgeId != -1 && edge.EdgeTypeId == g.Edges[memoPos.BeforeEdgeId].EdgeTypeId{
 				continue
 			}
 

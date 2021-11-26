@@ -27,6 +27,8 @@ type Edge struct {
 
 	ViaNodes []NodeIdType
 	UseTrips []int
+
+	EdgeTypeId int
 }
 
 type Node struct {
