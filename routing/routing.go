@@ -3,7 +3,6 @@ package routing
 import (
 	"fmt"
 
-	"github.com/groove-x/cloudfunctions/log"
 	"github.com/takoyaki-3/minmaxRouting"
 	pb "github.com/takoyaki-3/minmaxRouting/pb"
 )
