@@ -14,12 +14,12 @@ type Id2Ids struct {
 	OldEdgeid2edgeids []map[minmax.EdgeIdType]minmax.EdgeIdType
 }
 
-func MergeMinMaxGraphs(gs []*minmax.Graph)(mg *minmax.Graph,id2ids *Id2Ids){
+func MergeMinMaxGraphs(gs []*minmax.Graph)(*minmax.Graph,*Id2Ids){
 	var numNodes,numEdges int
 
-	mg = &minmax.Graph{}
+	mg := &minmax.Graph{}
 
-	id2ids = &Id2Ids{
+	id2ids := Id2Ids{
 		Nodeid2nodeids: map[minmax.NodeIdType]minmax.NodeIdType{},
 		Edgeid2edgeids: map[minmax.EdgeIdType]minmax.EdgeIdType{},
 		Nodeid2componentids: map[minmax.NodeIdType]int{},
@@ -37,7 +37,7 @@ func MergeMinMaxGraphs(gs []*minmax.Graph)(mg *minmax.Graph,id2ids *Id2Ids){
 		for i,_:=range g.Nodes{
 			Nodeid2nodeids[minmax.NodeIdType(i)] = minmax.NodeIdType(numNodes+i)
 			id2ids.Nodeid2nodeids[minmax.NodeIdType(numNodes+i)] = minmax.NodeIdType(i)
-			id2ids.Nodeid2componentids[minmax.NodeIdType(numNodes+1)] = j
+			id2ids.Nodeid2componentids[minmax.NodeIdType(numNodes+i)] = j
 			id2ids.OldNodeid2nodeids[j][minmax.NodeIdType(i)] = minmax.NodeIdType(numNodes+i)
 		}
 		for i,e:=range g.Edges{
@@ -56,5 +56,5 @@ func MergeMinMaxGraphs(gs []*minmax.Graph)(mg *minmax.Graph,id2ids *Id2Ids){
 		numEdges += len(g.Edges)
 	}
 	mg.Nodes = make([]minmax.Node, numNodes)
-	return mg,id2ids
+	return mg,&id2ids
 }
