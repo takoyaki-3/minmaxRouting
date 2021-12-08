@@ -1,7 +1,7 @@
 package routing
 
 import (
-	"fmt"
+	// "fmt"
 
 	"github.com/takoyaki-3/minmaxRouting"
 	pb "github.com/takoyaki-3/minmaxRouting/pb"
@@ -62,6 +62,9 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 		}
 
 		for _,edgeId := range g.Nodes[pos].FromEdgeIds{
+			// if cou > 500097 {
+			// 	fmt.Println("a")
+			// }
 			edge := g.Edges[edgeId]
 			if edge.ToId == pos{
 				continue
@@ -69,35 +72,44 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 			if query.IsSerialNG && memoPos.BeforeEdgeId != -1 && edge.EdgeTypeId == g.Edges[memoPos.BeforeEdgeId].EdgeTypeId{
 				continue
 			}
+			// if cou > 500097 {
+			// 	fmt.Println("c")
+			// }
 
 			// 同一路線を排除
-			if memoPos.BeforeEdgeId != -1{
-				beforeUseTrips := g.Edges[memoPos.BeforeEdgeId].UseTrips
-				if len(beforeUseTrips) > 0{
-					befS := -1
-					for tripIndex,trip := range edge.UseTrips{
-						if trip == beforeUseTrips[0]{
-							befS = tripIndex
-						}
-					}
-					if befS != -1{
-						flag := false
-						for index:=0;index<len(edge.UseTrips)-befS;index++{
-							if len(beforeUseTrips) == index{
-								flag = true
-								break
-							}
-							if edge.UseTrips[befS+index] != beforeUseTrips[index]{
-								flag = true
-								break
+			if !query.IsSerialNG {
+				if memoPos.BeforeEdgeId != -1{
+					beforeUseTrips := g.Edges[memoPos.BeforeEdgeId].UseTrips
+					if len(beforeUseTrips) > 0{
+						befS := -1
+						for tripIndex,trip := range edge.UseTrips{
+							if trip == beforeUseTrips[0]{
+								befS = tripIndex
 							}
 						}
-						if !flag {
-							continue
+						if befS != -1{
+							flag := false
+							for index:=0;index<len(edge.UseTrips)-befS;index++{
+								if len(beforeUseTrips) == index{
+									flag = true
+									break
+								}
+								if edge.UseTrips[befS+index] != beforeUseTrips[index]{
+									flag = true
+									break
+								}
+							}
+							if !flag {
+								continue
+							}
 						}
 					}
 				}
 			}
+			
+			// if cou > 500097 {
+			// 	fmt.Println("d")
+			// }
 
 			newW := WeightAdder(memoPos.Weight,edge.Weight)
 			// 既知のゴールへの重みより大きいか検証
@@ -121,6 +133,11 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 			if !f{
 				continue
 			}
+
+			
+			// if cou > 500097 {
+			// 	fmt.Println("e")
+			// }
 
 			flag := true
 			// // 辺の経由駅が訪問済みの場合
@@ -187,12 +204,22 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				ind = m.BeforeIndex
 				eid = m.BeforeEdgeId
 			}
+			
+			// if cou > 500097 {
+			// 	fmt.Println("f")
+			// }
 			if !flag {
 				continue
 			}
-			if false && cou % 1000 == 0{
-				fmt.Println("add",cou,newW)
-			}
+			
+			// if cou > 500097 {
+			// 	fmt.Println("g")
+			// }
+			// if true && cou % 100 == 0{
+				// if cou > 500000{
+				// 	fmt.Println("add",cou,newW)
+				// }
+			// }
 			cou++
 			que.Add(edge.ToId,newW,len(memo[edge.ToId]))
 			memo[edge.ToId] = append(memo[edge.ToId], CB{
@@ -202,6 +229,9 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo [][]C
 				Weight: newW,
 				IsUse: true,
 			})
+			// if cou > 500097 {
+			// 	fmt.Println("b")
+			// }
 		}
 	}
 
