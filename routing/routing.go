@@ -69,41 +69,37 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo)
 				continue
 			}
 
-			// // 同一路線を排除
-			// if !query.IsSerialNG {
-			// 	if posCb.BeforeEdgeId != -1{
-			// 		beforeUseTrips := g.Edges[posCb.BeforeEdgeId].UseTrips
-			// 		if len(beforeUseTrips) > 0{
-			// 			befS := -1
-			// 			for tripIndex,trip := range edge.UseTrips{
-			// 				if trip == beforeUseTrips[0]{
-			// 					befS = tripIndex
-			// 				}
-			// 			}
-			// 			if befS != -1{
-			// 				flag := false
-			// 				for index:=0;index<len(edge.UseTrips)-befS;index++{
-			// 					if len(beforeUseTrips) == index{
-			// 						flag = true
-			// 						break
-			// 					}
-			// 					if edge.UseTrips[befS+index] != beforeUseTrips[index]{
-			// 						flag = true
-			// 						break
-			// 					}
-			// 				}
-			// 				if !flag {
-			// 					continue
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// }
+			// 同一路線を排除
+			if !query.IsSerialNG {
+				if posCb.BeforeEdgeId != -1{
+					beforeUseTrips := g.Edges[posCb.BeforeEdgeId].UseTrips
+					if len(beforeUseTrips) > 0{
+						befS := -1
+						for tripIndex,trip := range edge.UseTrips{
+							if trip == beforeUseTrips[0]{
+								befS = tripIndex
+							}
+						}
+						if befS != -1{
+							flag := false
+							for index:=0;index<len(edge.UseTrips)-befS;index++{
+								if len(beforeUseTrips) == index{
+									flag = true
+									break
+								}
+								if edge.UseTrips[befS+index] != beforeUseTrips[index]{
+									flag = true
+									break
+								}
+							}
+							if !flag {
+								continue
+							}
+						}
+					}
+				}
+			}
 			
-			// // if cou > 500097 {
-			// // 	fmt.Println("d")
-			// // }
-
 			newW := WeightAdder(posCb.Weight,edge.Weight)
 			// 既知のゴールへの重みより大きいか検証
 			if toNode != -1 && !Better(newW,&memo[toNode]) {
@@ -127,16 +123,16 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo)
 			}
 
 			flag := true
-			// // 辺の経由駅が訪問済みの場合
-			// for _,n := range edge.ViaNodes{
-			// 	if edge.ToId == n{
-			// 		flag = false
-			// 		break
-			// 	}
-			// }
-			// if !flag{
-			// 	continue
-			// }
+			// 辺の経由駅が訪問済みの場合
+			for _,n := range edge.ViaNodes{
+				if edge.ToId == n{
+					flag = false
+					break
+				}
+			}
+			if !flag{
+				continue
+			}
 			// 既に訪問済みか検証
 			cb := posCb
 			eid := edgeId
@@ -249,8 +245,6 @@ func GetRouteTree(memo Memo)(*pb.RouteTree){
 			tree.Leaves = append(tree.Leaves, &pb.Leaf{
 				NodeId: int32(nid),
 				Index: int32(index),
-				// BeforeNodeId: int32(v.BeforeNode),
-				// BeforeIndex: int32(v.BeforeIndex),
 				BeforeEdgeId: int32(v.BeforeEdgeId),
 				Weight: wight,
 			})
