@@ -55,6 +55,26 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 		posCb := memoList[posCBIndex]
 		// fmt.Println(cou,posCBIndex)
 		cou++
+		if cou % 1000 == 0 {
+			fmt.Println(cou,que.Len(),len(memo[toNode]))
+
+			// for i:=0;i<len(memo[toNode]);i++{
+			// 	f := false
+			// 	if memo[toNode][i] < 0 {
+			// 		f = true
+			// 	} else {
+			// 		// 包括重み範囲判定に変更する
+			// 		if !BetterIndex(memoList[memo[toNode][i]].Weight,&memo[toNode],&memoList) {
+			// 			f = true
+			// 		}
+			// 	}
+			// 	if f {
+			// 		memo[toNode][i] = memo[toNode][len(memo[toNode])-1]
+			// 		memo[toNode] = memo[toNode][:len(memo[toNode])-1]
+			// 		i--
+			// 	}
+			// }
+		}
 		if !posCb.IsUse {
 			continue
 		}
@@ -83,61 +103,72 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 				continue
 			}
 
-			// 同一路線を排除
-			if !query.IsSerialNG {
-				if posCb.BeforeEdgeId != initEdge{
-					beforeUseTrips := g.Edges[posCb.BeforeEdgeId].UseTrips
-					if len(beforeUseTrips) > 0{
-						befS := -1
-						for tripIndex,trip := range edge.UseTrips{
-							if trip == beforeUseTrips[0]{
-								befS = tripIndex
-							}
-						}
-						if befS != -1{
-							flag := false
-							for index:=0;index<len(edge.UseTrips)-befS;index++{
-								if len(beforeUseTrips) == index{
-									flag = true
-									break
-								}
-								if edge.UseTrips[befS+index] != beforeUseTrips[index]{
-									flag = true
-									break
-								}
-							}
-							if !flag {
-								continue
-							}
-						}
-					}
-				}
-			}
+			// // 同一路線を排除
+			// if !query.IsSerialNG {
+			// 	if posCb.BeforeEdgeId != initEdge{
+			// 		beforeUseTrips := g.Edges[posCb.BeforeEdgeId].UseTrips
+			// 		if len(beforeUseTrips) > 0{
+			// 			befS := -1
+			// 			for tripIndex,trip := range edge.UseTrips{
+			// 				if trip == beforeUseTrips[0]{
+			// 					befS = tripIndex
+			// 				}
+			// 			}
+			// 			if befS != -1{
+			// 				flag := false
+			// 				for index:=0;index<len(edge.UseTrips)-befS;index++{
+			// 					if len(beforeUseTrips) == index{
+			// 						flag = true
+			// 						break
+			// 					}
+			// 					if edge.UseTrips[befS+index] != beforeUseTrips[index]{
+			// 						flag = true
+			// 						break
+			// 					}
+			// 				}
+			// 				if !flag {
+			// 					continue
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
 
 			newW := WeightAdder(posCb.Weight,edge.Weight)
-			// 既知のゴールへの重みより大きいか検証
-			if toNode != -1 && !BetterIndex(newW,&memo[toNode],&memoList) {
-				continue
-			}
+			// // 既知のゴールへの重みより大きいか検証
+			// if toNode != -1 && !BetterIndex(newW,&memo[toNode],&memoList) {
+			// 	continue
+			// }
 			f := true
 			for index,mi := range memo[edge.ToId]{
 				if mi < 0{
 					continue
 				}
 				m := memoList[mi]
-				if mi >= 0 && memoList[memo[edge.ToId][index]].IsUse {
+				if mi >= 0 && memoList[mi].IsUse {
 					cw := CompWeight(m.Weight,newW)
 					if cw == -1 {
 						f = false
 						break
 					} else if cw == 1 {
-						memoList[memo[edge.ToId][index]].IsUse = false
+						memoList[mi].IsUse = false
 						memo[edge.ToId][index] = -2
 					}
 				}
 			}
 			if !f{
 				continue
+			}
+
+			// 乗換え回数の判定
+			if toNode != -1{
+				if edge.ToId != toNode && int(newW.Weights[1].Min) >= query.MaxTransfer - 1 {
+					continue
+				}
+			} else {
+				if int(newW.Weights[1].Min) >= query.MaxTransfer {
+					continue
+				}
 			}
 
 			flag := true
@@ -153,59 +184,17 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 			}
 			// 既に訪問済みか検証
 			cb := &posCb
-			eid := edgeId
-			transfer := 0
 			for posCBIndex >= 0 && cb.IsUse {
-				// if cb == nil {
-				// 	flag = false
-				// 	break
-				// }
-				// 乗換回数の上限検査
-				transfer++
-				if toNode != -1{
-					if edge.ToId != toNode && transfer > query.MaxTransfer - 1 {
-						flag = false
-						break
-					}
-				} else {
-					if transfer > query.MaxTransfer {
-						flag = false
-						break
-					}
-				}
 				// 既に訪問済みの場合
 				if cb.Node == edge.ToId{
 					flag = false
 					break
 				}
 
-				if eid != -1{
-					if eid != edgeId{
-						for _,vnode := range g.Edges[eid].ViaNodes{
-							if vnode == edge.ToId{
-								flag = false
-								break
-							}
-							for _,n := range edge.ViaNodes{
-								if vnode == n {
-									flag = false
-									break
-								}
-							}
-							if !flag {
-								break
-							}	
-						}
-						if !flag {
-							break
-						}
-					}
-				}
 				if cb.BeforeCB < 0 {
 					break
 				}
 				cb = &memoList[cb.BeforeCB]
-				eid = cb.BeforeEdgeId
 			}
 			
 			if !flag {
@@ -221,30 +210,21 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 				BeforeCB: posCBIndex,
 			})
 			cb = &memoList[cbIndex]
-			// nilに戻れるかチェック
-			// pp := cb
-			// p := cb
-			// cout := 0
-			// for p.BeforeCB >= 0{
-			// 	pp = p
-			// 	p = &memoList[p.BeforeCB]
-			// 	// fmt.Println("cout:",cout)
-			// 	cout++
-			// }
-			// if pp.BeforeEdgeId != -1 {
-			// 	fmt.Println("???")
-			// }
+
 			que.Add(cbIndex)
 			memo[edge.ToId] = append(memo[edge.ToId], cbIndex)
 		}
 	}
 
 	if toNode != -1 {
-		for i,_:=range memo[toNode] {
-			if memo[toNode][i] >= 0{
-				if BetterIndex(memoList[memo[toNode][i]].Weight,&memo[toNode],&memoList) {
-					routes = append(routes, *GetRoute(memo[toNode][i],&memoList))
-					fmt.Println("add")
+		for _,m:=range memo[toNode] {
+			if m >= 0{
+				if BetterIndex(memoList[m].Weight,&memo[toNode],&memoList) {
+					r := GetRoute(m,&memoList)
+					if r != nil {
+						routes = append(routes, *r)
+						// fmt.Println("add")	
+					}
 				}
 			}
 		}
