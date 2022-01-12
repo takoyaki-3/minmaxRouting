@@ -53,53 +53,48 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 	for que.Len() > 0 {
 		posCBIndex := que.Get()
 		posCb := memoList[posCBIndex]
-		// fmt.Println(cou,posCBIndex)
-		cou++
-		if cou % 1000 == 0 {
-			fmt.Println(cou,que.Len(),len(memo[toNode]))
 
-			// for i:=0;i<len(memo[toNode]);i++{
-			// 	f := false
-			// 	if memo[toNode][i] < 0 {
-			// 		f = true
-			// 	} else {
-			// 		// 包括重み範囲判定に変更する
-			// 		if !BetterIndex(memoList[memo[toNode][i]].Weight,&memo[toNode],&memoList) {
-			// 			f = true
-			// 		}
-			// 	}
-			// 	if f {
-			// 		memo[toNode][i] = memo[toNode][len(memo[toNode])-1]
-			// 		memo[toNode] = memo[toNode][:len(memo[toNode])-1]
-			// 		i--
-			// 	}
-			// }
+		cou++
+		if toNode >= 0 && cou % 1000 == 0 {
+			fmt.Println(cou,que.Len(),len(memo[toNode]))
 		}
+
+		// posCbが既に未使用のものであればスキップ
 		if !posCb.IsUse {
 			continue
 		}
+
+		// 目的地が存在するクエリの場合、目的地到達判定を行う
 		if toNode != -1 {
-			// fmt.Println("posCb",posCb)
-			if posCb.Node == toNode {
-				// fmt.Println(pos,memoPosIndex,memoPos.Weight.Weights,que.Len())
-				// fmt.Println("Goal!!")
-				memo[toNode] = append(memo[toNode], posCBIndex)
-				continue
-			}
-			// 既知のゴールへの重みより大きいか検証
+			// 枝刈り：既知のゴールへの重みより大きいか検証
 			if !BetterIndex(posCb.Weight,&memo[toNode],&memoList) {
 				posCb.IsUse = false
 				continue
 			}
-		}
+			if posCb.Node == toNode {
+				memo[toNode] = append(memo[toNode], posCBIndex)
+				// fmt.Println("posCb",posCb)
 
-		for _,edgeId := range g.Nodes[posCb.Node].FromEdgeIds{
-			edge := g.Edges[edgeId]
-			if edge.ToId == posCb.Node{
-				// 移動しない辺の為
+				// for i,p := range memo[toNode]{
+				// 	if !BetterIndex(memoList[p].Weight,&memo[toNode],&memoList){
+				// 		memo[toNode] = append(memo[toNode][:i], memo[toNode][i+1:]...)
+				// 	}
+				// }
 				continue
 			}
+		}
+
+		// Posが始点となる辺から探索範囲拡張を行っていく
+		for _,edgeId := range g.Nodes[posCb.Node].FromEdgeIds{
+			edge := g.Edges[edgeId]
+
+			// 同一辺タイプ（コンポーネント毎に異なるEdgeTypeIdを想定）であればスキップ
 			if query.IsSerialNG && posCb.BeforeEdgeId != initEdge && edge.EdgeTypeId == g.Edges[posCb.BeforeEdgeId].EdgeTypeId{
+				continue
+			}
+			
+			// 乗換辺を連続使用しない。乗換辺はEdgeTypeIdは-1。mkTreeの時に使用する。
+			if posCb.BeforeEdgeId != initEdge && edge.EdgeTypeId == -1 && g.Edges[posCb.BeforeEdgeId].EdgeTypeId == -1{
 				continue
 			}
 
@@ -135,42 +130,36 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 			// }
 
 			newW := WeightAdder(posCb.Weight,edge.Weight)
-			// // 既知のゴールへの重みより大きいか検証
-			// if toNode != -1 && !BetterIndex(newW,&memo[toNode],&memoList) {
-			// 	continue
-			// }
+
+			// 乗換え回数の判定
+			if int(newW.Weights[1].Min) > query.MaxTransfer {
+				continue
+			}
+
+			// 既知のゴールへの重みより大きいか検証
+			if toNode != -1 && !BetterIndex(newW,&memo[toNode],&memoList) {
+				continue
+			}
 			f := true
 			for index,mi := range memo[edge.ToId]{
-				if mi < 0{
+				if mi < 0 || !memoList[mi].IsUse{
 					continue
 				}
 				m := memoList[mi]
-				if mi >= 0 && memoList[mi].IsUse {
-					cw := CompWeight(m.Weight,newW)
-					if cw == -1 {
-						f = false
-						break
-					} else if cw == 1 {
-						memoList[mi].IsUse = false
-						memo[edge.ToId][index] = -2
-					}
+				cw := CompWeight(m.Weight,newW)
+				if cw == -1 {
+					f = false
+					break
+				} else if cw == 1 {
+					memoList[mi].IsUse = false
+					memo[edge.ToId][index] = -2
 				}
 			}
 			if !f{
 				continue
 			}
 
-			// 乗換え回数の判定
-			if toNode != -1{
-				if edge.ToId != toNode && int(newW.Weights[1].Min) >= query.MaxTransfer - 1 {
-					continue
-				}
-			} else {
-				if int(newW.Weights[1].Min) >= query.MaxTransfer {
-					continue
-				}
-			}
-
+			// 枝刈り施策
 			flag := true
 			// 辺の経由駅が訪問済みの場合
 			for _,n := range edge.ViaNodes{
@@ -182,23 +171,24 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 			if !flag{
 				continue
 			}
-			// 既に訪問済みか検証
-			cb := &posCb
-			for posCBIndex >= 0 && cb.IsUse {
-				// 既に訪問済みの場合
-				if cb.Node == edge.ToId{
-					flag = false
-					break
-				}
 
-				if cb.BeforeCB < 0 {
-					break
+			// 既に訪問済みの頂点であればスキップ
+			if posCb.BeforeCB > 0{
+				bposcb := memoList[posCb.BeforeCB]
+				flag := true
+				for {
+					if bposcb.BeforeEdgeId == initEdge {
+						break
+					}
+					if bposcb.Node == edge.ToId {
+						flag = false
+						break
+					}
+					bposcb = memoList[bposcb.BeforeCB]
 				}
-				cb = &memoList[cb.BeforeCB]
-			}
-			
-			if !flag {
-				continue
+				if !flag {
+					continue
+				}
 			}
 
 			cbIndex := len(memoList)
@@ -209,7 +199,6 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 				IsUse: true,
 				BeforeCB: posCBIndex,
 			})
-			cb = &memoList[cbIndex]
 
 			que.Add(cbIndex)
 			memo[edge.ToId] = append(memo[edge.ToId], cbIndex)
@@ -223,7 +212,6 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 					r := GetRoute(m,&memoList)
 					if r != nil {
 						routes = append(routes, *r)
-						// fmt.Println("add")	
 					}
 				}
 			}
@@ -306,9 +294,11 @@ func BetterIndex(weight minmaxrouting.Weight,ws *[]int,memoList *[]CB)bool{
 			fmt.Println("range over",len(*memoList),w)
 			continue
 		}
-		if w >= 0 && len((*memoList)[w].Weight.Weights) > 0{
-			if CompWeight(weight,(*memoList)[w].Weight) == 1 {
-				return false
+		if (*memoList)[w].IsUse {
+			if w >= 0 && len((*memoList)[w].Weight.Weights) > 0{
+				if CompWeight(weight,(*memoList)[w].Weight) == 1 {
+					return false
+				}	
 			}	
 		}
 	}
