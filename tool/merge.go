@@ -58,3 +58,12 @@ func MergeMinMaxGraphs(gs []*minmax.Graph)(*minmax.Graph,*Id2Ids){
 	mg.Nodes = make([]minmax.Node, numNodes)
 	return mg,&id2ids
 }
+
+// func Deduplication(g *minmax.Graph){
+// 	rmEdges := []minmax.EdgeIdType{}
+// 	for i:=0;i<len(g.Edges);i++{
+// 		for j:=i+1;j<len(g.Edges);j++{
+// 			if g.Edges[i].FromId == g.
+// 		}
+// 	}
+// }

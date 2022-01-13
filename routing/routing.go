@@ -53,6 +53,10 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 	for que.Len() > 0 {
 		posCBIndex := que.Get()
 		posCb := memoList[posCBIndex]
+		if posCb.Done {
+			continue
+		}
+		memoList[posCBIndex].Done = true
 
 		cou++
 		if toNode >= 0 && cou % 1000 == 0 {
@@ -72,7 +76,16 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 				continue
 			}
 			if posCb.Node == toNode {
-				memo[toNode] = append(memo[toNode], posCBIndex)
+				f := true
+				for _,v := range memo[toNode]{
+					if v == posCBIndex {
+						f = false
+						break
+					}
+				}
+				if f{
+					memo[toNode] = append(memo[toNode], posCBIndex)
+				}
 				// fmt.Println("posCb",posCb)
 
 				// for i,p := range memo[toNode]{
@@ -141,8 +154,11 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 				continue
 			}
 			f := true
-			for index,mi := range memo[edge.ToId]{
-				if mi < 0 || !memoList[mi].IsUse{
+			for index := 0;index < len(memo[edge.ToId]);index++{
+				mi := memo[edge.ToId][index]
+				if !memoList[mi].IsUse{
+					memo[edge.ToId] = append(memo[edge.ToId][:index],memo[edge.ToId][index+1:]...)
+					index--
 					continue
 				}
 				m := memoList[mi]
@@ -152,7 +168,9 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 					break
 				} else if cw == 1 {
 					memoList[mi].IsUse = false
-					memo[edge.ToId][index] = -2
+					// memo[edge.ToId][index] = -2
+					memo[edge.ToId] = append(memo[edge.ToId][:index],memo[edge.ToId][index+1:]...)
+					index--
 				}
 			}
 			if !f{
@@ -202,6 +220,23 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 
 			que.Add(cbIndex)
 			memo[edge.ToId] = append(memo[edge.ToId], cbIndex)
+
+			// デバッグ用出力
+			// fmt.Print("edgeId:",edgeId,"	",cou,"	edge ",edge.FromId,edge.ToId,g.Nodes[posCb.Node].FromEdgeIds,"	",edge.ToId)
+			// if posCb.BeforeCB > 0{
+			// 	bposcb := posCb
+			// 	for {
+			// 		fmt.Print(".",bposcb.Node)
+			// 		if bposcb.BeforeEdgeId == initEdge {
+			// 			break
+			// 		}
+			// 		if bposcb.Node == edge.ToId {
+			// 			break
+			// 		}
+			// 		bposcb = memoList[bposcb.BeforeCB]
+			// 	}
+			// }
+			// fmt.Println("")
 		}
 	}
 
@@ -363,5 +398,6 @@ type CB struct {
 	Weight minmaxrouting.Weight
 	IsUse bool
 	BeforeCB int
+	Done bool
 }
 
