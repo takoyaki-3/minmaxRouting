@@ -23,9 +23,15 @@ type Route struct {
 	SubNodes [][]minmaxrouting.NodeIdType
 }
 
-type Memo [][]int
+type Memo [][]*CB
 
-func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,memoList []CB){
+func newCB(data *CB)*CB{
+	cb := new(CB)
+	*cb = *data
+	return cb
+}
+
+func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo){
 
 	toNode := minmaxrouting.NodeIdType(query.ToNode)
 
@@ -34,55 +40,45 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 
 	// 初期化
 	initEdge := minmaxrouting.EdgeIdType(-1)
-	memoList = []CB{
-		CB{},
-		CB{
-			BeforeEdgeId: initEdge,
-			Weight: *minmaxrouting.NewWeight(query.NWeight),
-			IsUse: true,
-			Node: query.FromNode,
-			BeforeCB: -1,
-		},
-	}
-	memo[query.FromNode] = append(memo[query.FromNode], 1)
+
+	memo[query.FromNode] = append(memo[query.FromNode],newCB(&CB{
+		BeforeEdgeId: initEdge,
+		Weight: *minmaxrouting.NewWeight(query.NWeight),
+		Node: query.FromNode,
+		BeforeCB: nil,
+	}))
 
 	cou := 0
 	que := Que{}
-	que.Add(1)
+	que.Add(memo[query.FromNode][0])
 
 	for que.Len() > 0 {
-		posCBIndex := que.Get()
+		posCB := que.Get()
 
 		cou++
 		if toNode >= 0 && cou % 1000 == 0 {
 			fmt.Println(cou,que.Len(),len(memo[toNode]))
 		}
 
-		// posCbが既に未使用のものであればスキップ
-		if !memoList[posCBIndex].IsUse {
-			continue
-		}
-
 		// 目的地が存在するクエリの場合、目的地到達判定を行う
 		if toNode != -1 {
 			// 枝刈り：既知のゴールへの重みより大きいか検証
-			if !BetterIndex(memoList[posCBIndex].Weight,&memo[toNode],&memoList) {
-				memoList[posCBIndex].IsUse = false
+			if !BetterIndex(posCB.Weight,&memo[toNode]) {
 				continue
 			}
 		}
 
 		// Posが始点となる辺から探索範囲拡張を行っていく
-		for _,edgeId := range g.Nodes[memoList[posCBIndex].Node].FromEdgeIds{
+		for _,edgeId := range g.Nodes[posCB.Node].FromEdgeIds{
 			edge := g.Edges[edgeId]
 
 			// 同一辺タイプ（コンポーネント毎に異なるEdgeTypeIdを想定）であればスキップ
-			if query.IsSerialNG && memoList[posCBIndex].BeforeEdgeId != initEdge && edge.EdgeTypeId == g.Edges[memoList[posCBIndex].BeforeEdgeId].EdgeTypeId{
+			if query.IsSerialNG && posCB.BeforeEdgeId != initEdge && edge.EdgeTypeId == g.Edges[posCB.BeforeEdgeId].EdgeTypeId{
 				continue
 			}
 			
 			// 乗換辺を連続使用しない。乗換辺はEdgeTypeIdは-1。mkTreeの時に使用する。
-			if memoList[posCBIndex].BeforeEdgeId != initEdge && edge.EdgeTypeId == -1 && g.Edges[memoList[posCBIndex].BeforeEdgeId].EdgeTypeId == -1{
+			if posCB.BeforeEdgeId != initEdge && edge.EdgeTypeId == -1 && g.Edges[posCB.BeforeEdgeId].EdgeTypeId == -1{
 				continue
 			}
 
@@ -117,7 +113,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 			// 	}
 			// }
 
-			newW := WeightAdder(memoList[posCBIndex].Weight,edge.Weight)
+			newW := WeightAdder(posCB.Weight,edge.Weight)
 
 			// 乗換え回数の判定
 			if int(newW.Weights[1].Min) > query.MaxTransfer {
@@ -125,25 +121,22 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 			}
 
 			// 既知のゴールへの重みより大きいか検証
-			if toNode != -1 && !BetterIndex(newW,&memo[toNode],&memoList) {
+			if toNode != -1 && !BetterIndex(newW,&memo[toNode]) {
 				continue
 			}
 			f := true
 			for index := 0;index < len(memo[edge.ToId]);index++{
 				mi := memo[edge.ToId][index]
-				if !memoList[mi].IsUse{
+				if mi == nil {
 					memo[edge.ToId] = append(memo[edge.ToId][:index],memo[edge.ToId][index+1:]...)
 					index--
 					continue
 				}
-				m := memoList[mi]
-				cw := CompWeight(m.Weight,newW)
+				cw := CompWeight(mi.Weight,newW)
 				if cw == -1 {
 					f = false
 					break
 				} else if cw == 1 {
-					memoList[mi].IsUse = false
-					// memo[edge.ToId][index] = -2
 					memo[edge.ToId] = append(memo[edge.ToId][:index],memo[edge.ToId][index+1:]...)
 					index--
 				}
@@ -166,8 +159,8 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 			}
 
 			// 既に訪問済みの頂点であればスキップ
-			if memoList[posCBIndex].BeforeCB > 0{
-				bposcb := memoList[memoList[posCBIndex].BeforeCB]
+			if posCB.BeforeCB != nil{
+				bposcb := posCB.BeforeCB
 				flag := true
 				for {
 					if bposcb.BeforeEdgeId == initEdge {
@@ -177,24 +170,22 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 						flag = false
 						break
 					}
-					bposcb = memoList[bposcb.BeforeCB]
+					bposcb = bposcb.BeforeCB
 				}
 				if !flag {
 					continue
 				}
 			}
 
-			cbIndex := len(memoList)
-			memoList = append(memoList, CB{
+			ncb := newCB(&CB{
 				Node: edge.ToId,
 				BeforeEdgeId: edgeId,
 				Weight: newW,
-				IsUse: true,
-				BeforeCB: posCBIndex,
+				BeforeCB: posCB,
 			})
 
-			que.Add(cbIndex)
-			memo[edge.ToId] = append(memo[edge.ToId], cbIndex)
+			que.Add(ncb)
+			memo[edge.ToId] = append(memo[edge.ToId], ncb)
 
 			// デバッグ用出力
 			// fmt.Print("edgeId:",edgeId,"	",cou,"	edge ",edge.FromId,edge.ToId,g.Nodes[memoList[posCBIndex].Node].FromEdgeIds,"	",edge.ToId)
@@ -217,25 +208,25 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo,
 
 	if toNode != -1 {
 		for _,m:=range memo[toNode] {
-			if m >= 0{
-				if BetterIndex(memoList[m].Weight,&memo[toNode],&memoList) {
-					r := GetRoute(m,&memoList)
+			// if m != nil{
+				if BetterIndex(m.Weight,&memo[toNode]) {
+					r := GetRoute(m)
 					if r != nil {
 						routes = append(routes, *r)
 					}
 				}
-			}
+			// }
 		}
 	}
 
-	return routes,memo,memoList
+	return routes,memo
 }
 
-func GetRoutes(cbs *[]*CB,memoList *[]CB)[]Route{
+func GetRoutes(cbs *[]*CB)[]Route{
 	routes := []Route{}
 	for _,cb := range *cbs{
 		if Better(cb.Weight,cbs) {
-			r := GetRoute(cb.BeforeCB,memoList)
+			r := GetRoute(cb.BeforeCB)
 			if r != nil{
 				routes = append(routes, *r)
 			}
@@ -244,46 +235,46 @@ func GetRoutes(cbs *[]*CB,memoList *[]CB)[]Route{
 	return routes
 }
 
-func GetRouteTree(memo Memo,memoList []CB)(*pb.RouteTree){
+func GetRouteTree(memo Memo)(*pb.RouteTree){
+
+	memoList := []CB{}
+	cbmap := map[*CB]int{}
+	cbmap[nil] = -3
+	for _,v:=range memo{
+		for _,p:=range v{
+			if _,ok:=cbmap[p];!ok{
+				cbmap[p] = len(memoList)
+				memoList = append(memoList, *p)
+			}	
+		}
+	}
+
 	tree := &pb.RouteTree{}
 	tree.Leaves = make([]*pb.Leaf, len(memoList))
-	for index,v:=range memoList{
+	for index,cb:=range memoList{
 		wight := &pb.Weight{}
-		for _,w := range v.Weight.Weights {
+		for _,w := range cb.Weight.Weights {
 			wight.Max = append(wight.Max, int32(w.Max))
 			wight.Min = append(wight.Min, int32(w.Min))
 		}
-		tree.Leaves[index] = CB2Leaf(&v,wight)
+		tree.Leaves[index] = &pb.Leaf{
+			IsUse: true,
+			NodeId: int32(cb.Node),
+			Index: int32(cbmap[cb.BeforeCB]),
+			BeforeEdgeId: int32(cb.BeforeEdgeId),
+			Weight: wight,
+		}
 	}
 	return tree
 }
 
-func CB2Leaf(cb *CB,wight *pb.Weight)*pb.Leaf{
-	if cb.BeforeCB == 0{
-		cb.BeforeCB = -3
-	}
-	return &pb.Leaf{
-		IsUse: cb.IsUse,
-		NodeId: int32(cb.Node),
-		Index: int32(cb.BeforeCB),
-		BeforeEdgeId: int32(cb.BeforeEdgeId),
-		Weight: wight,
-	}
-}
-
-func GetRoute(pos int,memoList *[]CB)*Route{
+func GetRoute(pos *CB)*Route{
 	route := Route{
-		Weight: (*memoList)[pos].Weight,
+		Weight: pos.Weight,
 	}
-	for {
-		if !(*memoList)[pos].IsUse {
-			return nil
-		}
-		route.Nodes = append([]minmaxrouting.NodeIdType{(*memoList)[pos].Node},route.Nodes...)
-		if (*memoList)[pos].BeforeCB < 0 {
-			break
-		}
-		pos = (*memoList)[pos].BeforeCB
+	for pos != nil {
+		route.Nodes = append([]minmaxrouting.NodeIdType{pos.Node},route.Nodes...)
+		pos = pos.BeforeCB
 	}
 	return &route
 }
@@ -298,18 +289,14 @@ func Better(weight minmaxrouting.Weight,ws *[]*CB)bool{
 	}
 	return true
 }
-func BetterIndex(weight minmaxrouting.Weight,ws *[]int,memoList *[]CB)bool{
+func BetterIndex(weight minmaxrouting.Weight,ws *[]*CB)bool{
 	for _,w := range *ws{
-		if w >= len(*memoList) {
-			fmt.Println("range over",len(*memoList),w)
-			continue
-		}
-		if (*memoList)[w].IsUse {
-			if w >= 0 && len((*memoList)[w].Weight.Weights) > 0{
-				if CompWeight(weight,(*memoList)[w].Weight) == 1 {
+		if w != nil {
+			if len(w.Weight.Weights) > 0{
+				if CompWeight(weight,w.Weight) == 1 {
 					return false
 				}	
-			}	
+			}
 		}
 	}
 	return true
@@ -326,18 +313,18 @@ func WeightAdder(w1 minmaxrouting.Weight,w2 minmaxrouting.Weight)(w minmaxroutin
 }
 
 type Que struct {
-	Cb []int
+	Cb []*CB
 }
 
-func (q *Que)Add(cb int){
-	q.Cb = append(q.Cb, cb)
+func (q *Que)Add(p *CB){
+	q.Cb = append(q.Cb, p)
 }
 
 func (q *Que)Len()int{
 	return len(q.Cb)
 }
 
-func (q *Que)Get()(int){
+func (q *Que)Get()(*CB){
 	cb := q.Cb[0]
 	q.Cb = q.Cb[1:]
 	return cb
@@ -371,7 +358,6 @@ type CB struct {
 	Node minmaxrouting.NodeIdType
 	BeforeEdgeId minmaxrouting.EdgeIdType
 	Weight minmaxrouting.Weight
-	IsUse bool
-	BeforeCB int
+	BeforeCB *CB
 }
 

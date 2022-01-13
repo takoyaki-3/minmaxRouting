@@ -10,7 +10,7 @@ import (
 func main(){
 	g := makeTestGraph()
 
-	routes,_,_ := routing.MinMaxRouting(g,routing.Query{
+	routes,_ := routing.MinMaxRouting(g,routing.Query{
 		FromNode: 0,
 		ToNode: 6,
 		NWeight: 2,
