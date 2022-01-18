@@ -31,9 +31,12 @@ type Edge struct {
 	EdgeTypeId int
 }
 
+const NT_Shared = 1
+
 type Node struct {
 	FromEdgeIds []EdgeIdType
 	ToEdgeIds []EdgeIdType
+	NodeType int
 }
 
 type Graph struct {
