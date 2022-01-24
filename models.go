@@ -4,7 +4,7 @@ type Weight struct {
 	Weights []MinMax
 }
 
-type SingleCostType int
+type SingleCostType int32
 
 type MinMax struct {
 	Min SingleCostType
@@ -17,8 +17,8 @@ func NewWeight(n int)*Weight{
 	return &w
 }
 
-type EdgeIdType int
-type NodeIdType int
+type EdgeIdType int32
+type NodeIdType int32
 
 type Edge struct {
 	FromId NodeIdType
