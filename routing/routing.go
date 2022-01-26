@@ -10,6 +10,7 @@ type Query struct {
 	FromNode minmaxrouting.NodeIdType
 	ToNode minmaxrouting.NodeIdType
 	MaxTransfer int
+	MaxTime int
 	IsSerialNG bool
 
 	NotPruningShearedPoint bool 	// 共有点でも目的地でもなければ除外
@@ -131,7 +132,7 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo)
 
 			// 乗換え回数の判定
 			if !query.NotPruningWeightMax {
-				if int(newW.Weights[1].Min) > query.MaxTransfer {
+				if int(newW.Weights[1].Min) > query.MaxTransfer || newW.Weights[0].Min > minmaxrouting.SingleCostType(query.MaxTime) {
 					continue
 				}
 			}
