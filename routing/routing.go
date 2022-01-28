@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"time"
+
 	"github.com/takoyaki-3/minmaxRouting"
 	pb "github.com/takoyaki-3/minmaxRouting/pb"
 )
@@ -12,6 +14,7 @@ type Query struct {
 	MaxTransfer int
 	MaxTime int
 	IsSerialNG bool
+	TimeOut int
 
 	NotPruningShearedPoint bool 	// 共有点でも目的地でもなければ除外
 	NotPruningTransfer bool				// 乗換え辺を連続使用しないか
@@ -58,8 +61,21 @@ func MinMaxRouting(g *minmaxrouting.Graph,query Query)(routes []Route,memo Memo)
 	que := Que{}
 	que.Add(memo[query.FromNode][0])
 
+	startTime := time.Now()
+
+	// c:=0
 	for que.Len() > 0 {
 		posCB := que.Get()
+
+		// fmt.Println(time.Now().Sub(startTime).Seconds() , float64(query.TimeOut))
+		if query.TimeOut > 1 && time.Now().Sub(startTime).Seconds() > float64(query.TimeOut){
+			break
+		}
+
+		// c++
+		// if c%10000==0{
+		// 	fmt.Println(que.Len(),posCB)			
+		// }
 
 		// 目的地が存在するクエリの場合、目的地到達判定を行う
 		if toNode != -1 {
